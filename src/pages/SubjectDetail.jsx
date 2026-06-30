@@ -8,20 +8,37 @@ function SubjectDetail() {
     const [subject, setSubject] = useState(null)
     const [uploadedPapers, setUploadedPapers] = useState([])
     const [loading, setLoading] = useState(true)
+    const [notFound, setNotFound] = useState(false)
 
     useEffect(() => {
         Promise.all([
             fetch(`http://localhost:5000/api/subjects/${code}`).then((res) => res.json()),
             fetch(`http://localhost:5000/api/papers/${code}`).then((res) => res.json()),
         ]).then(([subjectData, papersData]) => {
-            setSubject(subjectData.error ? null : subjectData)
             setUploadedPapers(papersData)
+
+            if (!subjectData.error) {
+                setSubject(subjectData)
+            } else if (papersData.length > 0) {
+                // No seeded Subject exists, but real uploaded papers do — build a fallback view from the first paper.
+                const first = papersData[0]
+                setSubject({
+                    code: first.code,
+                    name: first.name,
+                    department: first.department || '',
+                    semester: first.semester || '',
+                    scheme: first.scheme || '',
+                    papers: [],
+                })
+            } else {
+                setNotFound(true)
+            }
             setLoading(false)
         })
     }, [code])
 
     if (loading) return <main className="flex-1 p-4">Loading...</main>
-    if (!subject) return <main className="flex-1 p-4">Subject not found.</main>
+    if (notFound) return <main className="flex-1 p-4">Subject not found.</main>
 
     const allPapers = [
         ...subject.papers.map((p) => ({ ...p, isUploaded: false })),

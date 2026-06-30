@@ -3,21 +3,40 @@ import { useNavigate } from 'react-router-dom'
 
 function Upload() {
     const [file, setFile] = useState(null)
-    const [status, setStatus] = useState('idle') // idle | scanning | done | submitting
-    const [form, setForm] = useState({ code: '', name: '', examType: '', year: '' })
+    const [status, setStatus] = useState('idle')
+    const [form, setForm] = useState({ code: '', name: '', examType: '', year: '', department: '', semester: '', scheme: '' })
     const navigate = useNavigate()
 
-    function handleFileChange(e) {
+    async function handleFileChange(e) {
         const selected = e.target.files[0]
         if (!selected) return
         setFile(selected)
         setStatus('scanning')
 
-        // Simulated AI auto-tagging — a real version would send the PDF to a backend/model.
-        setTimeout(() => {
-            setForm({ code: 'CST303', name: 'Computer Networks', examType: 'University Exam', year: '2024' })
-            setStatus('done')
-        }, 1500)
+        const data = new FormData()
+        data.append('file', selected)
+
+        try {
+            const res = await fetch('http://localhost:5000/api/scan', {
+                method: 'POST',
+                body: data,
+            })
+            const extracted = await res.json()
+            setForm({
+                code: extracted.code || '',
+                name: extracted.name || '',
+                examType: extracted.examType || '',
+                year: extracted.year ? String(extracted.year) : '',
+                department: extracted.department || '',
+                semester: extracted.semester ? String(extracted.semester) : '',
+                scheme: extracted.scheme || '',
+            })
+        } catch (err) {
+            console.error('Auto-tag failed:', err)
+            setForm({ code: '', name: '', examType: '', year: '', department: '', semester: '', scheme: '' })
+        }
+
+        setStatus('done')
     }
 
     function handleChange(e) {
@@ -34,6 +53,9 @@ function Upload() {
         data.append('name', form.name)
         data.append('examType', form.examType)
         data.append('year', form.year)
+        data.append('department', form.department)
+        data.append('semester', form.semester)
+        data.append('scheme', form.scheme)
 
         await fetch('http://localhost:5000/api/papers', {
             method: 'POST',
@@ -41,11 +63,14 @@ function Upload() {
         })
 
         alert('Uploaded! Thanks for contributing.')
+        const submittedCode = form.code.toUpperCase()
         setFile(null)
         setStatus('idle')
-        setForm({ code: '', name: '', examType: '', year: '' })
-        navigate(`/subject/${form.code.toUpperCase()}`)
+        setForm({ code: '', name: '', examType: '', year: '', department: '', semester: '', scheme: '' })
+        navigate(`/subject/${submittedCode}`)
     }
+
+    const lowConfidence = status === 'done' && !form.code
 
     return (
         <main className="flex-1 pb-24 p-4">
@@ -67,9 +92,15 @@ function Upload() {
 
             {(status === 'done' || status === 'submitting') && (
                 <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+                    {lowConfidence && (
+                        <p className="text-sm text-error bg-error-container rounded-lg p-3">
+                            Couldn't auto-detect details — please fill manually.
+                        </p>
+                    )}
+
                     <div>
                         <label className="text-sm font-semibold flex items-center gap-2">
-                            Subject Code <span className="text-xs text-primary font-normal">AI suggested</span>
+                            Subject Code {form.code && <span className="text-xs text-primary font-normal">AI suggested</span>}
                         </label>
                         <input
                             name="code"
@@ -81,7 +112,7 @@ function Upload() {
 
                     <div>
                         <label className="text-sm font-semibold flex items-center gap-2">
-                            Subject Name <span className="text-xs text-primary font-normal">AI suggested</span>
+                            Subject Name {form.name && <span className="text-xs text-primary font-normal">AI suggested</span>}
                         </label>
                         <input
                             name="name"
@@ -92,21 +123,81 @@ function Upload() {
                     </div>
 
                     <div>
+                        <label className="text-sm font-semibold flex items-center gap-2">
+                            Department {form.department && <span className="text-xs text-primary font-normal">AI suggested</span>}
+                        </label>
+                        <select
+                            name="department"
+                            value={form.department}
+                            onChange={handleChange}
+                            className="w-full mt-1 border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">Select department</option>
+                            <option value="CSE">CSE</option>
+                            <option value="ECE">ECE</option>
+                            <option value="ME">ME</option>
+                            <option value="CE">CE</option>
+                            <option value="EEE">EEE</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-semibold flex items-center gap-2">
+                            Semester {form.semester && <span className="text-xs text-primary font-normal">AI suggested</span>}
+                        </label>
+                        <select
+                            name="semester"
+                            value={form.semester}
+                            onChange={handleChange}
+                            className="w-full mt-1 border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">Select semester</option>
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                                <option key={n} value={n}>Semester {n}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-semibold flex items-center gap-2">
+                            Scheme {form.scheme && <span className="text-xs text-primary font-normal">AI suggested</span>}
+                        </label>
+                        <select
+                            name="scheme"
+                            value={form.scheme}
+                            onChange={handleChange}
+                            className="w-full mt-1 border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">Select scheme</option>
+                            <option value="2019">2019</option>
+                            <option value="2024">2024</option>
+                        </select>
+                    </div>
+
+                    <div>
                         <label className="text-sm font-semibold">Exam Type</label>
-                        <input
+                        <select
                             name="examType"
                             value={form.examType}
                             onChange={handleChange}
                             className="w-full mt-1 border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
+                        >
+                            <option value="">Select exam type</option>
+                            <option value="University Exam">University Exam</option>
+                            <option value="Series Test 1">Series Test 1</option>
+                            <option value="Series Test 2">Series Test 2</option>
+                        </select>
                     </div>
 
                     <div>
-                        <label className="text-sm font-semibold">Year</label>
+                        <label className="text-sm font-semibold flex items-center gap-2">
+                            Year {form.year && <span className="text-xs text-primary font-normal">AI suggested</span>}
+                        </label>
                         <input
                             name="year"
                             value={form.year}
                             onChange={handleChange}
+                            placeholder="e.g. 2024"
                             className="w-full mt-1 border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                     </div>

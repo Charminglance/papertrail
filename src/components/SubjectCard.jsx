@@ -11,7 +11,7 @@ function SubjectCard({ code, name, papers }) {
                 <span className="font-mono text-xs bg-surface-container px-2 py-1 rounded">{code}</span>
                 <div className="flex items-center text-secondary text-xs">
                     <span className="material-symbols-outlined mr-1" style={{ fontSize: 16 }}>description</span>
-                    {papers} Papers
+                    {papers > 0 ? `${papers} Papers` : 'View Papers'}
                 </div>
             </div>
             <h3 className="text-base font-semibold pl-2 leading-tight">{name}</h3>
